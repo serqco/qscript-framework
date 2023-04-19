@@ -25,6 +25,7 @@ parser.execute_subcommand(args)  # or supply nothing, then parse_args() will be 
 The mechanism uses only one sub-parser group (which is rarely a relevant limitation).
 It will execute importlib.import_module() on all modules mentioned in a scan() call as strings. 
 Multiple calls to scan() are allowed, each can have one or more arguments.
+scan(..., strict=True) will exit when encountering a non-subcommand-module.
 Subcommands cannot be nested, there is only one level of subcommands.
 """
 
@@ -32,8 +33,9 @@ Subcommands cannot be nested, there is only one level of subcommands.
 import argparse
 import importlib
 import re
-import warnings
+import sys
 import typing as tg
+import warnings
 
 
 moduletype = type(argparse)
@@ -48,7 +50,7 @@ class ArgumentParser(argparse.ArgumentParser):
         self.subcommand_modules = dict()  # map subcommand name to module
         self.aliases = dict()  # map alias name to subcommand name and subcommand name to itself
 
-    def scan (self, *modules):
+    def scan (self, *modules, strict=False):
         for module in modules:
             # ----- obtain module and names:
             if isinstance(module, str):
@@ -63,9 +65,13 @@ class ArgumentParser(argparse.ArgumentParser):
             # ----- check for subcommand module:
             required_attrs = (('meaning', str), 
                               ('execute', functiontype), 
-                              ('configure_argparser', functiontype))
+                              ('add_arguments', functiontype))
             if self._misses_any_of(module, required_attrs):
-                continue  # silently skip modules that are not proper subcommand modules
+                if strict:
+                    print(f"{module_name} is not a proper subcommand module")
+                    sys.exit(1)
+                else:
+                    continue  # silently skip modules that are not proper subcommand modules
             # ----- configure subcommand:
             self.subcommand_modules[subcommand_name] = module
             aliases = module.aliases if hasattr(module, 'aliases') else []
