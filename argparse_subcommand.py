@@ -50,7 +50,7 @@ class ArgumentParser(argparse.ArgumentParser):
         self.subcommand_modules = dict()  # map subcommand name to module
         self.aliases = dict()  # map alias name to subcommand name and subcommand name to itself
 
-    def scan (self, *modules, strict=False):
+    def scan(self, *modules, strict=False):
         for module in modules:
             # ----- obtain module and names:
             if isinstance(module, str):
