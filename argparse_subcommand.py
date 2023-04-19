@@ -9,6 +9,12 @@ meaning = "some help text for the subcommand"
 def add_arguments(parser: ArgumentParser): ...  # configure the subcommand's sub-parser
 def execute(args: argparse.Namespace): ...  # run the subcommand
 
+The module can also optionally have:
+
+aliases = ["subcmd-alias1", "subcmd-alias2"]  # optional.
+
+for calling the same subcommand by a different name (e.g. an abbreviation).
+
 To use the mechanism, create the parser as usual and then call the submodule scanner:
 
 parser = ArgumentParser(epilog=explanation)
@@ -18,20 +24,10 @@ parser.execute_subcommand(args)  # or supply nothing, then parse_args() will be 
 
 The mechanism uses only one sub-parser group (which is rarely a relevant limitation).
 It will execute importlib.import_module() on all modules mentioned in a scan() call as strings. 
-Multiple calls to scan() are allowed.
+Multiple calls to scan() are allowed, each can have one or more arguments.
 Subcommands cannot be nested, there is only one level of subcommands.
 """
 
-# not yet implemented:
-"""
-The module can also additionally have:
-
-alias = ["subcmd-alias1", "subcmd-alias2"]  # optional. Can also be a single str
-
-for calling the same subcommand by a different name (e.g. an abbreviation).
-Aliases will not show in the automatically constructed help; you have to mention them
-in your explicit help strings.
-"""
 
 import argparse
 import importlib
@@ -50,9 +46,11 @@ class ArgumentParser(argparse.ArgumentParser):
         self.subparsers = self.add_subparsers(parser_class=argparse.ArgumentParser,
                                               dest='subcommand', required=True)
         self.subcommand_modules = dict()  # map subcommand name to module
+        self.aliases = dict()  # map alias name to subcommand name and subcommand name to itself
 
     def scan (self, *modules):
         for module in modules:
+            # ----- obtain module and names:
             if isinstance(module, str):
                 module = importlib.import_module(module)  # turn str into module
             if not isinstance(module, moduletype):
@@ -62,14 +60,19 @@ class ArgumentParser(argparse.ArgumentParser):
             mm = re.search(r"\.?(\w+)$", module_fullname)  # match last component or entire name
             module_name = mm.group(1)
             subcommand_name = module_name.replace("_", "-")
-            print("##1:", module_name, subcommand_name)
-            self.subcommand_modules[subcommand_name] = module
+            # ----- check for subcommand module:
             required_attrs = (('meaning', str), 
                               ('execute', functiontype), 
                               ('configure_argparser', functiontype))
             if self._misses_any_of(module, required_attrs):
                 continue  # silently skip modules that are not proper subcommand modules
-            subparser = self.subparsers.add_parser(subcommand_name, help=module.meaning)
+            # ----- configure subcommand:
+            self.subcommand_modules[subcommand_name] = module
+            aliases = module.aliases if hasattr(module, 'aliases') else []
+            for alias in aliases:
+                self.subcommand_modules[alias] = module
+            subparser = self.subparsers.add_parser(subcommand_name, help=module.meaning,
+                                                   aliases=aliases)
             module.add_arguments(subparser)
 
     def execute_subcommand(self, args: tg.Optional[argparse.Namespace] = None):
@@ -84,33 +87,3 @@ class ArgumentParser(argparse.ArgumentParser):
             if not module_elem or not isinstance(module_elem, _type):
                 return True  # this is not a subcommand-shaped submodule
         return False
-
-
-def main():  # uses sys.argv
-    """Calls subcommand given on command line"""
-    subcmd_package = sdrl.subcmd
-    argparser = setup_argparser(subcmd_package, description)
-    pargs = argparser.parse_args()
-    subcmd = pargs.subcmd
-    submodulename = subcmd.replace('-', '_')  # CLI command my-command corresponds to module sdrl.my_command
-    module = getattr(subcmd_package, submodulename)
-    module.execute(pargs)
-
-
-def setup_argparser(superpkg, description: str) -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=description)
-    subparsers = parser.add_subparsers(dest='subcmd', required=True)
-    for attrname in dir(superpkg):
-        myattr = getattr(superpkg, attrname)
-        if not isinstance(myattr, moduletype):
-            continue  # skip non-modules
-        submodule = myattr  # now we know it _is_ a module
-        subcommand_name = attrname.replace('_', '-')
-        required_attrs = (('help', str), ('execute', functiontype), ('configure_argparser', functiontype))
-        if _misses_any_of(submodule, required_attrs):
-            continue  # skip modules that are not proper subcommand modules
-        subparser = subparsers.add_parser(subcommand_name, help=submodule.help)
-        submodule.configure_argparser(subparser)
-    return parser
-
-
