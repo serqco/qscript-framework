@@ -69,15 +69,21 @@ def extract_part(extractor: Extractor, layouttype: LayoutDescriptor, pdffilepath
         f.write(abstract)
 
 
-def more_readable(txt: str, remove_pars: tg.Sequence[str]) -> str:
+def more_readable(txt: str) -> str:
     """Replace some special chars by more readable equivalents."""
     txt2 = txt
     txt2 = txt2.replace("ﬁ", "fi")
     txt2 = txt2.replace("ﬂ", "fl")
-    for regexp in remove_pars:
-        par_re = "\n\n%s\n\n" % regexp
-        txt2 = re.sub(par_re, "\n\n", txt2)
     return txt2
+
+
+def remove_stuff(txt: str, removelist: tg.Sequence[str]) -> str:
+    """Replace regexp matches (which are often whole paragraphs) by a single newline."""
+    txt2 = txt
+    for regexp in removelist:
+        txt2 = re.sub(regexp, "\n", txt2)
+    return txt2
+
 
 def volume_as_path_name_year(volumepath: str) -> tg.Tuple[str, str, int]:
     volumename_regexp = r"(.+/)?([A-Za-z]+)-(\d\d\d\d)"  # {perhaps_path}/{name}-{year}
