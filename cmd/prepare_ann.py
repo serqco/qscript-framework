@@ -44,30 +44,67 @@ def prepared(txt: str) -> str:
     Replacements enforce '\n' there and another after the '{{}}'.
     """
     possible_end = r'[.:?!]\s*[ \n$]'
+    txt2 = with_protection(txt)  # save non-sentence-ends from being treated like sentence ends
     result = ""
     # ----- process abstract text:
-    while len(txt) > 0:
-        end_match = re.search(possible_end, txt)
+    while len(txt2) > 0:
+        end_match = re.search(possible_end, txt2)
         if end_match:
             # print(f"## match ")  #'{end_match.group()}'")
             endpos = end_match.end()
-            candidate = txt[0:endpos]
-            txt = txt[endpos:]
+            candidate = txt2[0:endpos]
+            txt2 = txt2[endpos:]
             result += replacement_for(candidate)
         else:  # no further sentence end at all
             # print("## remainder ")
-            result += replacement_for(txt)
-            txt = ""
+            result += replacement_for(txt2)
+            txt2 = ""
+    return unprotect(result)  # put back protected possible_ends 
+
+
+protection_replacements = [('.', '\u2059'), (':', '\u205a'), ('?', '\u2056'), ('!', '\u205e'), ]
+
+
+def protect(txt: str) -> str:
+    """Replace characters that could indicate a sentence end by super-rare ones."""
+    for char, rplcmnt in protection_replacements:
+        txt = txt.replace(char, rplcmnt)
+    return txt
+
+
+def unprotect(txt: str) -> str:
+    """Replace the replacement characters back by the original characters."""
+    for char, rplcmnt in protection_replacements:
+        txt = txt.replace(rplcmnt, char)
+    return txt
+
+
+def with_protection(txt: str) -> str:
+    """
+    Knows some kinds of sentence-end-lookalikes that are not really sentence ends
+    and protects them by replacing the sentence-end-indicator characters by dummies.
+    """
+    non_sentenceends = (r"e\.g\.\s",
+                        r"et ?al.\s",
+                        r"https?:\s",
+                        r"i\.e\.\s",
+                        r"vs\.\s",
+                        r"\n# \d\d?\.?\s.+(?=\n)",  # heading with dotted number or pseudo-end in title
+                        )
+    mark_as_sentence = (r"\n(\d\d?\.){0,3}\d\d?\.?\s.+(?=\n)",  # e.g. "2.3.4. Acro: The Design Phase!"
+                        )
+    result = txt
+    for non_end in non_sentenceends:
+        result = re.sub(non_end, lambda mm: protect(mm.group()), result)
+    for sentence_structure in mark_as_sentence:
+        result = re.sub(sentence_structure, lambda mm: protect(mm.group()) + ".", result)
     return result
 
 
 def replacement_for(candidate: str) -> str:
+    """
+    Replaces a sentence by what should appear in the coding file for it:
+    replaces the trailing whitespace by "\n{{}}\n".
+    """
     result = re.sub(r"\s*$", r"", candidate)  # remove trailing whitespace
-    non_sentenceends = r"e\.g\.$|i\.e\.$"
-    nonend_match = re.search(non_sentenceends, result, flags=re.IGNORECASE)
-    if nonend_match:
-        result = candidate  # this candidate has no sentence end 
-    else:
-        result += "\n{{}}\n"
-    # print(f"replacement_for(({candidate}))  {nonend_match and 1 or 0}==>  {result}")
-    return result
+    return result + "\n{{}}\n"
