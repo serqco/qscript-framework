@@ -2,9 +2,8 @@ import json
 import os.path
 import typing as tg
 
-import qabs.extract_abs as ea
-import qscript.cmd.extract_part as ep
-import qscript.cmd.prepare_ann
+import qscript.extract_part as ep
+import qscript.prepare_ann
 import qscript.metadata as metadata
 import qscript
 
@@ -54,7 +53,7 @@ def prepare_article(extractor: Extractor, layouttypes: tg.Mapping[str, ep.Layout
     txt = extractor(layouttype, f"{volumedir}/{article}")  # may not be pure
     # ----- annotate extract and write coding-input file:
     title = titles[citekey]
-    annotated_txt = qscript.cmd.prepare_ann.prepared(txt)
+    annotated_txt = qscript.prepare_ann.prepared(txt)
     with open(targetfile, 'wt', encoding='utf8') as out:
         out.write(f"{title}\n\n{annotated_txt}")
         out.write("---\n")
