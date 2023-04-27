@@ -39,7 +39,8 @@ def execute(args: qscript.Namespace):
             if coder in (coder1, coder2):
                 msgcount += compare_files(file1, coder1, file2, coder2, 
                                           what.blockname(file1), args.maxcountdiff, annots)
-    msgcount = min(msgcount, 255)
+    msgcount = msgcount / 2       # we counted unordered pairs, so we have to undo the double counting
+    msgcount = min(msgcount, 255) # avoid overflow
     sys.exit(msgcount)  # 0 if no errors, number of errors otherwise
 
 
