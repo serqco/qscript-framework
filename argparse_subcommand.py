@@ -31,7 +31,9 @@ Subcommands cannot be nested, there is only one level of subcommands.
 
 
 import argparse
+import glob
 import importlib
+import os.path
 import re
 import sys
 import typing as tg
@@ -39,7 +41,7 @@ import warnings
 
 
 moduletype = type(argparse)
-functiontype = type(lambda: 1)  # TODO: get this from stdlib
+functiontype = type(lambda: 1)
 
 
 class ArgumentParser(argparse.ArgumentParser):
@@ -48,15 +50,18 @@ class ArgumentParser(argparse.ArgumentParser):
         self.subparsers = self.add_subparsers(parser_class=argparse.ArgumentParser,
                                               dest='subcommand', required=True)
         self.subcommand_modules = dict()  # map subcommand name to module
-        self.aliases = dict()  # map alias name to subcommand name and subcommand name to itself
 
-    def scan(self, *modules, strict=False):
+    def scan(self, *modules, strict=False, trace=False):
         for module in modules:
             # ----- obtain module and names:
             if isinstance(module, str):
-                module = importlib.import_module(module)  # turn str into module
+                if module.endswith(".*"):
+                    self.scan_submodules(module[:-2], strict=strict, trace=trace)
+                    continue
+                else:
+                    module = importlib.import_module(module)  # turn str into module
             if not isinstance(module, moduletype):
-                warnings.warn(f"scan() arguments must be str or module: {type(module)} ignored.")
+                warnings.warn(f"scan() arguments must be str or module: {module} {type(module)} ignored.")
                 continue  # skip non-modules. 
             module_fullname = module.__name__  # includes superpackages
             mm = re.search(r"\.?(\w+)$", module_fullname)  # match last component or entire name
@@ -71,7 +76,11 @@ class ArgumentParser(argparse.ArgumentParser):
                     print(f"{module_name} is not a proper subcommand module")
                     sys.exit(1)
                 else:
+                    if trace:
+                        print(f"'{module_fullname}' is not a subcommand module")
                     continue  # silently skip modules that are not proper subcommand modules
+            if trace:
+                print(f"'{module_fullname}' found")
             # ----- configure subcommand:
             self.subcommand_modules[subcommand_name] = module
             aliases = module.aliases if hasattr(module, 'aliases') else []
@@ -80,6 +89,21 @@ class ArgumentParser(argparse.ArgumentParser):
             subparser = self.subparsers.add_parser(subcommand_name, help=module.meaning,
                                                    aliases=aliases)
             module.add_arguments(subparser)
+
+    def scan_submodules(self, modulename: str, strict=False, trace=False):
+        if trace:
+            print(f"scan_submodules('{modulename}')")
+        module = importlib.import_module(modulename)  # turn str into module
+        file_name = module.__file__
+        if file_name is None:
+            raise ValueError(f"'{modulename}' must lead to a directory with an __init__.py")
+        directory = os.path.dirname(file_name)
+        for pyfile in glob.glob(os.path.join(directory, "*.py")):
+            submodulebasename = os.path.basename(pyfile)[:-3]  # last component without suffix
+            if submodulebasename.startswith("_"):
+                continue  # skip __init__py and anything that would become an option name
+            submodulename = f"{modulename}.{submodulebasename}"
+            self.scan(submodulename, strict=strict, trace=trace)
 
     def execute_subcommand(self, args: tg.Optional[argparse.Namespace] = None):
         if args is None:
