@@ -1,0 +1,19 @@
+#--- our stuff:
+*~
+#*#
+
+
+#--- general Python stuff
+__pycache__/
+env/
+profile_default/
+venv/
+.coverage
+.coverage.*
+.cache
+.mypy_cache/
+.python-version
+.env
+.venv
+ipython_config.py
+pip-log.txt
