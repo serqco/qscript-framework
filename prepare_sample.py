@@ -7,7 +7,7 @@ import qscript.prepare_ann
 import qscript.metadata as metadata
 import qscript
 
-Extractor = tg.Callable[[ep.LayoutDescriptor, str], None]
+Extractor = tg.Callable[[ep.LayoutDescriptor, str, qscript.Namespace], str]
 
 
 def add_arguments(subparser: qscript.ArgumentParser):
@@ -20,7 +20,8 @@ def add_arguments(subparser: qscript.ArgumentParser):
 
 
 def execute_template(args: qscript.Namespace, 
-                     extractor: Extractor, layouttypes: tg.Mapping[str, ep.LayoutDescriptor]):
+                     extractor: Extractor, layouttypes: tg.Mapping[str, ep.LayoutDescriptor],
+                     helper: qscript.Namespace = qscript.Namespace()):
     targetdir = f"{args.workdir}/raw"
     # ----- prepare directories:
     if args.remainder:
@@ -36,10 +37,12 @@ def execute_template(args: qscript.Namespace,
         titles = json.load(f)
     # ----- create coding-input files:
     for article in sample:
-        prepare_article(extractor, layouttypes, targetdir, args.volumedir, article, titles)
+        prepare_article(extractor, layouttypes, helper,
+                        targetdir, args.volumedir, article, titles)
 
 
 def prepare_article(extractor: Extractor, layouttypes: tg.Mapping[str, ep.LayoutDescriptor],
+                    helper: qscript.Namespace,
                     targetdir: str, volumedir: str, 
                     article: metadata.Entry, titles: tg.Mapping[str, str]):
     """Extracts abstract, splits by sentence, inserts {{}}, writes to abstract file"""
@@ -50,7 +53,7 @@ def prepare_article(extractor: Extractor, layouttypes: tg.Mapping[str, ep.Layout
     # ----- obtain abstract:
     print(f"{article}  \t-> {targetfile}")
     layouttype = ep.decide_layouttype(layouttypes, article)
-    txt = extractor(layouttype, f"{volumedir}/{article}")  # may not be pure
+    txt = extractor(layouttype, f"{volumedir}/{article}", helper)  # may not be pure
     # ----- annotate extract and write coding-input file:
     title = titles[citekey]
     annotated_txt = qscript.prepare_ann.prepared(txt)
