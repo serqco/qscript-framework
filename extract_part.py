@@ -1,4 +1,5 @@
 """framework for the concrete parts extractors extract_abs, extract_concl."""
+import argparse
 import os.path
 import re
 import typing as tg
@@ -6,7 +7,7 @@ import typing as tg
 import qscript.metadata
 
 LayoutDescriptor = tg.Mapping[str, tg.Any]  # fixed structure per extraction task
-Extractor = tg.Callable[[LayoutDescriptor, str], str]  # returns text extracted from PDF
+Extractor = tg.Callable[[LayoutDescriptor, str, argparse.Namespace], str]  # returns text extracted from PDF
 
 
 def is_icse_in_year(volume: str, years: tg.Set[int]) -> bool:
@@ -39,21 +40,25 @@ def decide_layouttype(layouttypes: tg.Mapping[str, LayoutDescriptor], entry: qsc
     raise ValueError(f"cannot find layouttype for volume '{volume}'")
 
 
-def extract_parts(extractor: Extractor, layouttypes: dict, layouttype: str, 
+def extract_parts(extractor: Extractor, 
+                  layouttypes: dict, layouttype: str, helper: argparse.Namespace,
                   outputdir: str, inputfile: str):
     if inputfile.endswith('.pdf'):
         layout = layouttypes[layouttype] if layouttype else decide_layouttype(layouttypes, inputfile)
-        extract_part(extractor, layout, inputfile, outputdir)
+        extract_part(extractor, layout, inputfile, helper, outputdir)
     elif inputfile.endswith('.list'):
         with open(inputfile, mode='rt', encoding="utf8") as f:
             inputstring = f.read()
         for inputfile in inputstring.split('\n'):
-            extract_part(extractor, decide_layouttype(layouttypes, inputfile), inputfile, outputdir)
+            extract_part(extractor, decide_layouttype(layouttypes, inputfile), inputfile, helper,
+                         outputdir)
     else:
         print(f"'{inputfile}': unknown input file type; must be .pdf or .list")
 
 
-def extract_part(extractor: Extractor, layouttype: LayoutDescriptor, pdffilepath: str, outputdir: str):
+def extract_part(extractor: Extractor, 
+                 layouttype: LayoutDescriptor, pdffilepath: str, helper: argparse.Namespace,
+                 outputdir: str):
     # ----- skip existing:
     pdffile = os.path.basename(pdffilepath)
     basename, suffix = os.path.splitext(pdffile)
@@ -62,7 +67,7 @@ def extract_part(extractor: Extractor, layouttype: LayoutDescriptor, pdffilepath
         print(f"#### '{outputpathname}' exists!. SKIPPED.")
         return
     # ----- obtain abstract:
-    abstract = extractor(layouttype, pdffilepath)
+    abstract = extractor(layouttype, pdffilepath, helper)
     # ----- write abstract:
     print(f"---- writing '{outputpathname}'")
     with open(outputpathname, mode='wt', encoding="utf8") as f:
@@ -70,7 +75,7 @@ def extract_part(extractor: Extractor, layouttype: LayoutDescriptor, pdffilepath
 
 
 def more_readable(txt: str) -> str:
-    """Replace some special chars by more readable equivalents."""
+    """Replace some special chars (such as ligatures) by more readable equivalents."""
     txt2 = txt
     txt2 = txt2.replace("ﬁ", "fi")
     txt2 = txt2.replace("ﬂ", "fl")
