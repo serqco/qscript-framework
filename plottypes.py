@@ -15,7 +15,7 @@ import pandas as pd
 
 class Subset(dict):
     def __getattr__(self, attrname):
-        """subset attributes become Python pseudo attributes"""
+        """subset dictionary keys become Python pseudo attributes"""
         return self[attrname]
 
 
@@ -42,7 +42,7 @@ class Subsets(list):
     Define and handle overlapping subsets of something, e.g. rows in pd.Dataframes.
     A list of either Rows or Values objects, e.g.:
       ss = Subsets([Rows(rows=lambda df: df.a >= 0, color='red', label="A"),
-                         rows=lambda df: df.b <= 0, color='blue', label="B"))
+                    Rows(rows=lambda df: df.b <= 0, color='blue', label="B")])
     If you initialize it all at once, like above, the consistency will be checked.
     Then iterate over groups and retrieve their rows and other attributes, e.g.
       for subset in ss:
@@ -150,7 +150,7 @@ def plot_boxplots(ctx: PlotContext, which: str, *, ymax=None):
     ctx.ax.set_ylabel(which)
     ctx.ax.grid(axis='y', linewidth=0.1)
     for descriptor in ctx.subsets:
-        vals = descriptor.rows_(ctx.df)[which]
+        vals = ctx.df.loc[descriptor.rows_(ctx.df), which]
         add_boxplot(ctx, vals, descriptor)
     ctx.savefig()
 
