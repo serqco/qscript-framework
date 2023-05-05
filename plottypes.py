@@ -206,8 +206,8 @@ def funcname(levels_up: int) -> str:
     return traceback.extract_stack(limit=levels_up+1)[0].name
 
 
-def plotfilename(outputdir: str, name_suffix="") -> str:
-    """Filename derived from function name two stackframes up."""
+def plotfilename(outputdir: str, name_suffix="", nesting=0) -> str:
+    """Filename derived from function name nesting+2 stackframes up."""
     if name_suffix:
         name_suffix = "_" + name_suffix
-    return "%s/%s%s.pdf" % (outputdir, funcname(2).replace('plot_', ''), name_suffix)
+    return "%s/%s%s.pdf" % (outputdir, funcname(2+nesting).replace('plot_', ''), name_suffix)
