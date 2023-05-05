@@ -99,9 +99,10 @@ class PlotContext:
 AddXletOp = tg.Callable[[PlotContext, float, tg.Any, Subset], None]
 
 
-def plot_xletgroups(ctx: PlotContext, add_op: AddXletOp, basename: str, ylabel: str, *, ymax=None):
-    """Draw groups of boxplotlets (one per inner_subset) for all subsets."""
-    ctx.again_for(f"boxplotletgroups_{basename}")
+def plot_xletgroups(ctx: PlotContext, add_op: AddXletOp, plottype: str, basename: str, 
+                    ylabel: str, *, ymax=None):
+    """Draw groups of xlets (one per inner_subset) for all subsets."""
+    ctx.again_for(f"{plottype}_xletgroups_{basename}")
     ctx.ax.set_ylim(bottom=0, top=ymax)
     ctx.ax.set_ylabel(ylabel)
     ctx.ax.grid(axis='y', linewidth=0.1)
@@ -127,7 +128,7 @@ def add_xletgroup(ctx: PlotContext, x: float, add_xlet_op: AddXletOp, subset: Su
         add_xlet_op(ctx, x, xlet_data, inner_subset)
 
 
-def add_boxplotlet(ctx: PlotContext, x: float, 
+def add_boxplotlet(ctx: PlotContext, x: float,
                    xlet_data: tg.Any, inner_subset: Subset):
     color = inner_subset.get('color', "mediumblue")
     xlet_x = x + inner_subset['x']
@@ -141,10 +142,19 @@ def add_boxplotlet(ctx: PlotContext, x: float,
         medianprops=dict(color='grey'),
         meanprops=dict(marker="o", markersize=3,
                        markerfacecolor="orange", markeredgecolor="orange"))
-    
+
+
+def add_zerofractionbarplotlet(ctx: PlotContext, x: float,
+                   xlet_data: tg.Any, inner_subset: Subset):
+    """One bar that shows what fraction (in percent) of the data is zero"""
+    color = inner_subset.get('color', "mediumblue")
+    xlet_x = x + inner_subset['x']
+    y = 100 * ((xlet_data == 0).sum() / len(xlet_data))
+    ctx.ax.bar(x=xlet_x, height=y, width=0.8, label="", color=color)
+
 
 def plot_boxplots(ctx: PlotContext, which: str, *, ymax=None):
-    """Draw boxplots for all subsets."""
+    """Make a plot with one boxplot for each subset."""
     ctx.again_for(f"boxplots_{which}")
     ctx.ax.set_ylim(bottom=0, top=ymax)
     ctx.ax.set_ylabel(which)
@@ -156,6 +166,7 @@ def plot_boxplots(ctx: PlotContext, which: str, *, ymax=None):
 
 
 def add_boxplot(ctx, vals, descr):
+    """Insert a single boxplot into a larger plot."""
     ctx.ax.boxplot(
         [vals],
         notch=False, whis=(10, 90),
@@ -179,6 +190,7 @@ def add_boxplot(ctx, vals, descr):
 def plot_lowess(x: pd.Series, xlabel: str, y: pd.Series, ylabel: str,
                 outputdir: str, name_suffix: str, *, 
                 frac=0.67, show=True, xmax=None, ymax=None):
+    """Plot a scatter plot plus a local linear regression line."""
     # ----- compute lowess line:
     import statsmodels.nonparametric.smoothers_lowess as sml
     delta = 0.01 * (x.max() - x.min())
