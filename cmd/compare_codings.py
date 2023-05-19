@@ -17,7 +17,7 @@ aliases = ["compare", "comp"]
 
 def add_arguments(subparser: qscript.ArgumentParser):
     subparser.add_argument('workdir',
-                           help="Directory where sample-who-what.txt and abstracts.?/* live")
+                           help="Directory where sample-who-what.txt and extracts subdirectories live")
     subparser.add_argument('--maxcountdiff', type=int, default=2, metavar="N",
                            help="how much the smaller IU count may be smaller without a message")
     subparser.add_argument('--onlyfor', type=str, metavar="codername",

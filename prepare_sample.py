@@ -16,7 +16,7 @@ def add_arguments(subparser: qscript.ArgumentParser):
     subparser.add_argument('--volumedir', metavar="dir", type=str, required=True,
                            help="target directory where to to find the volumes directories mentioned in 'sample.list'")
     subparser.add_argument('--remainder', action='store_true', default=False,
-                           help="Silently skip existing abstracts and create any missing ones.")
+                           help="Silently skip existing extracts and create any missing ones.")
 
 
 def execute_template(args: qscript.Namespace, 

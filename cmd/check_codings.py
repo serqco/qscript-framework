@@ -6,9 +6,9 @@ import qscript.color as color
 import qscript.metadata
 import qscript
 
-meaning = """Checks annotated (and unannotated) abstracts files for errors.
+meaning = """Checks annotated (and unannotated) extracts files for errors.
   Knows about annotation syntax. 
-  Reads all abstracts files and checks for syntax errors and undefined codes.
+  Reads all extracts files and checks for syntax errors and undefined codes.
   Reports problems on stdout.
 """
 aliases = ["check"]
@@ -16,7 +16,7 @@ aliases = ["check"]
 
 def add_arguments(subparser: qscript.ArgumentParser):
     subparser.add_argument('workdir',
-                           help="Directory where metadata and abstracts.?/* live")
+                           help="Directory where metadata and extracts subdirectories live")
 
 
 def execute(args: qscript.Namespace):

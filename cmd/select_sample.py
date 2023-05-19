@@ -11,7 +11,7 @@ meaning = "Get block-randomized articles list of given size"
 
 def add_arguments(subparser: qscript.ArgumentParser):
     subparser.add_argument('--size', metavar="N", type=int, required=True,
-                           help="Total number of abstracts in the sample")
+                           help="Total number of extracts in the sample")
     subparser.add_argument('--blocksize', metavar="k", type=int, required=True,
                            help="Size of subsamples that are stratified over volumes and randomized")
     subparser.add_argument('--to', metavar="targetdir", type=str, required=True,
@@ -99,7 +99,7 @@ def volumename(volumedir: str) -> str:
 def write_who_what(to: str, sample: Sample, blocksize: int):
     filename = f"{to}/sample-who-what.txt"
     with open(filename, 'w', encoding='utf8') as who:
-        who.write("# what      abstracts.A   abstracts.B\n")
+        who.write("# what        A          B\n")
         for i, citekey in enumerate(sample.citekeys):
             if i % blocksize == 0:
                 who.write("#----- Block %d\n" % (int(i/blocksize)+1))
