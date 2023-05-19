@@ -1,4 +1,5 @@
 """Reading and a little writing the various metadata files."""
+import glob
 import re
 import typing as tg
 
@@ -70,17 +71,21 @@ class WhoWhat:
     2. The format of that file (for reading only)
     3. The meaning of the entries in that file (blocks, reservations, implied filenames, coder_letters)
     4. Which pairs of annotated files should be compared
+    Secret 3 is non-fixed wrt the A/B subdirectories, the names of which may involve a variable prefix.
+    This makes _subdir_prefix() necessary and makes citekey() and coderletter() a bit ugly.
     """
-    FILENAME = "sample-who-what.txt"  # in workdir
+    WHOWHAT_FILE = "sample-who-what.txt"  # in workdir
+    FILENAMEPATTERN = r"/(.*)?([A-Z])/(\w+)\.txt$"
     BLOCKHEADER_REGEXP = r"^#---+ [Bb]lock (\d+)"
 
     def __init__(self, workdir: str):
         self.workdir = workdir
+        self.subdir_prefix = self._subdir_prefix()
         self.coders = set()
         self._coder_of = dict()  # filename -> codername
         self._block_of = dict()  # filename -> blockname
         self._pairs: tg.List[Filepair] = [] 
-        with open(f"{workdir}/{self.FILENAME}", 'r', encoding='utf8') as f:
+        with open(f"{workdir}/{self.WHOWHAT_FILE}", 'r', encoding='utf8') as f:
             lines = f.readlines()
         currentblock = ""  # block number as a string
         for line in lines:
@@ -108,17 +113,11 @@ class WhoWhat:
         """Which block does this file belong to?"""
         return self._block_of[filename]
 
-    @staticmethod
-    def citekey(filename: str) -> str:
-        """Partial inverse of _implied_filename()"""
-        mm = re.search(r"/abstracts\.[A-Z]/(\w+)\.txt", filename)
-        return mm.group(1)
+    def citekey(self, filename: str) -> str:
+        return self._filenamepart(filename, 3)
 
-    @staticmethod
-    def coder_letter(filename: str) -> str:
-        """Partial inverse of _implied_filename()"""
-        mm = re.search(r"/abstracts\.([A-Z])/", filename)
-        return mm.group(1)
+    def coder_letter(self, filename: str) -> str:
+        return self._filenamepart(filename, 2)
 
     def files_of(self, coder: str) -> tg.Generator[str, None, None]:
         for myfile, mycoder in self._coder_of.items():
@@ -138,7 +137,24 @@ class WhoWhat:
     def _implied_filename(self, citekey_: str, columnindex: int) -> str:
         """Knows the abstracts.A, abstracts.B dirname convention. First such column has index 0."""
         char = chr(ord('A') + columnindex)  # 26 columns maximum (we'll never need more than 10)
-        return f"{self.workdir}/abstracts.{char}/{citekey_}.txt"
+        return f"{self.workdir}/{self.subdir_prefix}{char}/{citekey_}.txt"
+
+    def _filenamepart(self, filename: str, which: int) -> str:
+        """Partial inverse of _implied_filename()"""
+        mm = re.search(self.FILENAMEPATTERN, filename)
+        return mm.group(which)
+
+
+    def _subdir_prefix(self) -> str:
+        """
+        Determine which, if any, prefix is used for the names of the extracts-holding subdirectories.
+        For workdir/abstracts.A would yield "abstracts.",
+        for workdir/A would yield "".
+        """
+        results = glob.glob(f"{self.workdir}/*A")
+        assert len(results) == 1, f"surprising glob result: {results}"
+        mm = re.search(r"/(.*)A$", results[0])  # find prefix in last part of path
+        return mm.group(1)
 
     def _build_neighboring_pairs(self, citekey_: str, columns: tg.Sequence[str]) -> tg.Generator[Filepair, None, None]:
         """
