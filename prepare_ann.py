@@ -84,10 +84,10 @@ def with_protection(txt: str) -> str:
     Knows some kinds of sentence-end-lookalikes that are not really sentence ends
     and protects them by replacing the sentence-end-indicator characters by dummies.
     """
-    non_sentenceends = (r"e\.g\.\s",
+    non_sentenceends = (r"[Ee]\.g\.\s",
                         r"et ?al.\s",
                         r"https?:\s",
-                        r"i\.e\.\s",
+                        r"[Ii]\.e\.\s",
                         r"vs\.\s",
                         r"\n# \d\d?\.?\s.+(?=\n)",  # heading with dotted number or pseudo-end in title
                         )
