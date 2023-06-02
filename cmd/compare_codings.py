@@ -112,8 +112,8 @@ def compare_codings2(file1: str, name1: str, annotated_sentences1: tg.Sequence[a
                                  numbered_sentence(as1), of_1(as1.annotation), of_2(as2.annotation))
             break
         # ----- check for double IGNORE:
-        set1 = annots.codings_of(as1.annotation, strip_suffixes=True)
-        set2 = annots.codings_of(as2.annotation, strip_suffixes=True)
+        set1 = annots.codings_of(as1.annotation, strip_suffixes=True, strip_subjective=True)
+        set2 = annots.codings_of(as2.annotation, strip_suffixes=True, strip_subjective=True)
         if IGNORE in set1 and IGNORE in set2:
             msgcount += printmsg(f"Code '{IGNORE}' should only appear in one coding, never in both as it does here:",
                                  numbered_sentence(as1), of_1(as1.annotation), of_2(as2.annotation))
