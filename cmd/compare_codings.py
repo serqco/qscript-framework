@@ -27,10 +27,9 @@ def add_arguments(subparser: qscript.ArgumentParser):
 
 
 def execute(args: qscript.Namespace):
-    msgcount = 0
     what = qscript.metadata.WhoWhat(args.workdir)
     annots = icc.init(annot.Annotations)
-    comparator = CodingsComparator()
+    comparator = icc.init(CodingsComparator)
     print("=========================================================================================")
     print("=== check pairs of files (consult with your fellow coder except for obvious mistakes) ===")
     print("=========================================================================================")
