@@ -14,6 +14,9 @@ import dataclasses
 import re
 import typing as tg
 
+import qscript.icc as icc
+
+
 OStr = tg.Optional[str]
 AnnotationishMatches = tg.Tuple[OStr, OStr, OStr, OStr]
 IUIUcount = tg.Tuple[int, int, int, int]
@@ -97,7 +100,7 @@ class Annotations:
     SPLIT_SUFFIX_REGEXP = r":?(?:i(\d+))?(?:u(\d+))?"  # works for suffix or csuffix
 
     def __init__(self):
-        self.codebook = Codebook()
+        self.codebook = icc.init(Codebook)
 
     def find_all_annotationish(self, content: str) -> tg.Sequence[AnnotationishMatches]:
         return re.findall(self.ANNOTATIONISH_REGEXP, content)

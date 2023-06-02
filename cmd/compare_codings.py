@@ -3,6 +3,7 @@ import typing as tg
 
 import qscript.annotations as annot
 import qscript.color as color
+import qscript.icc as icc
 import qscript.metadata
 import qscript
 
@@ -27,7 +28,7 @@ def add_arguments(subparser: qscript.ArgumentParser):
 def execute(args: qscript.Namespace):
     msgcount = 0
     what = qscript.metadata.WhoWhat(args.workdir)
-    annots = annot.Annotations()
+    annots = icc.init(annot.Annotations)
     print("=========================================================================================")
     print("=== check pairs of files (consult with your fellow coder except for obvious mistakes) ===")
     print("=========================================================================================")
@@ -58,7 +59,7 @@ def compare_files(file1: str, name1: str, file2: str, name2: str,
 
 def compare_codings2(file1: str, name1: str, annotated_sentences1: tg.Sequence[annot.AnnotatedSentence],
                      file2: str, name2: str, annotated_sentences2: tg.Sequence[annot.AnnotatedSentence],
-                     block: str, maxcountdiff: int, annots: annot.Annotations):
+                     block: str, maxcountdiff: int, annots: annot.Annotations) -> int:
     msgcount = 0
     lastmsg = ""  # message type in last header
     extra_line_done = True  # whether one more sentence after previous problem has been shown already

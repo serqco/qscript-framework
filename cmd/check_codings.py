@@ -3,6 +3,7 @@ import typing as tg
 
 import qscript.annotations as annot
 import qscript.color as color
+import qscript.icc as icc
 import qscript.metadata
 import qscript
 
@@ -23,7 +24,7 @@ def execute(args: qscript.Namespace):
     print("===============================================================================")
     print("=== check individual files (correct mistakes even if they are not your own) ===")
     print("===============================================================================")
-    annots = annot.Annotations()
+    annots = icc.init(annot.Annotations)
     what = qscript.metadata.WhoWhat(args.workdir)
     errors: int = 0
     for coder in sorted(what.coders):
