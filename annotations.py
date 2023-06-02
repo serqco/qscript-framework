@@ -6,12 +6,13 @@ Terminology for annotations:
 - codings:     abc, defg:i1  as a string or list of coding-s
 - coding:      defg:i1
 - code:        defg
-- csuffix:     :i1  ("colon-ed suffix")
+- cfullsuffix: :flag:i1  ("coloned")
+- fullsuffix:  flag:i1
 - suffix:      i1  (or i1u1 or u1)
-- suffixish:   CSuffix content not yet checked for structure
 """
 import dataclasses
 import re
+import sys
 import typing as tg
 
 import qscript.icc as icc
@@ -22,19 +23,45 @@ AnnotationishMatches = tg.Tuple[OStr, OStr, OStr, OStr]
 IUIUcount = tg.Tuple[int, int, int, int]
 
 
+@dataclasses.dataclass
+class CodeDef:
+    code: str
+    suffixdef: str
+    suffix_regexp: str
+
+
 class Codebook:
     CODEBOOK_PATH = 'codebook.md'  # in project rootdir
-    CODEDEF_REGEXP = r"code `([\w-]+(?::i?u)?)`"  # what code definitions look like in codebook
+    CODEDEF_REGEXP = r"code `([\w-]+)((?::[^:`]+)+)?`"  # e.g. mycode:flag:i\d
+    SUFFIX_SEPARATOR = ":"  # hardcoded in CODEDEF_REGEXP!
     IGNORECODE = '-ignorediff'  # code that indicates not to report coding differences
     GARBAGE_CODES = ['cruft']
     NONETOPIC = 'none'  # pseudo-topic for codes that have no topic
+    codedefs: tg.Mapping[str, CodeDef]  # maps code to CodeDef
 
     def __init__(self):
-        self.codes = self._allowed_codes(self.CODEBOOK_PATH)
+        self.codedefs = self.codebook_contents(self.CODEBOOK_PATH)
 
-    def exists_bare(self, code: str) -> bool:
-        """Whether this code can never have a UI suffix."""
-        return code in self.codes
+    class CodingError(KeyError):
+        """Code or suffix do not conform to codebook."""
+        pass
+
+    def exists(self, code: str) -> bool:
+        return code in self.codedefs
+
+    def check_suffix(self, code: str, fullsuffixish: str) -> None:
+        """Raises SuffixError(msg, code, suffix"""
+        if not fullsuffixish:
+            return  # null suffixes are always OK
+        if fullsuffixish.startswith(self.SUFFIX_SEPARATOR):
+            fullsuffixish = fullsuffixish[1:]  # remove initial separator
+        for suffix in fullsuffixish.split(self.SUFFIX_SEPARATOR):
+            allowed_pattern = self.codedefs[code].suffix_regexp
+            if not re.fullmatch(allowed_pattern, suffix):
+                msg = (f"suffix '{suffix}' not allowed for code '{code}': "
+                       f"{code}{self.SUFFIX_SEPARATOR}{self.codedefs[code].suffixdef}")
+                raise self.CodingError(msg)
+            # else all is fine and nothing happens
 
     def exists_with_iu_suffix(self, coding: str) -> bool:
         """Whether this coding with no IU suffix could have had one."""
@@ -78,11 +105,18 @@ class Codebook:
             return cls.topic(code[2:])
         return the_topic[code]
 
-    def _allowed_codes(self, codebookfile: str) -> tg.Set[str]:
+    def codebook_contents(self, codebookfile: str) -> tg.Mapping[str, CodeDef]:
         with open(codebookfile, 'rt', encoding='utf8') as cb:
             codebook = cb.read()
-        codes = re.findall(self.CODEDEF_REGEXP, codebook, flags=re.IGNORECASE)
-        return set(codes)
+        matches = re.findall(self.CODEDEF_REGEXP, codebook, flags=re.IGNORECASE)
+        result = dict()
+        for code, suffixdef in matches:
+            if suffixdef:
+                suffixdef = suffixdef[1:]  # remove initial separator
+            suffix_regexp = suffixdef.replace(self.SUFFIX_SEPARATOR, '|')  
+            codedef = CodeDef(code, suffixdef, suffix_regexp)
+            result[code] = codedef
+        return result
 
 
 @dataclasses.dataclass
@@ -96,7 +130,7 @@ class Annotations:
     ALLOWED_IU_SUFFIX_REGEXP = r"i\d+|u\d+|i\d+u\d+"
     ALLOWED_U_SUFFIX_REGEXP = r"u\d+"
     ANNOTATIONISH_REGEXP = r"\n(\{\{[^}]*\})\n|\n(\{[^{]*\}\})\n|\n(.+\{\{.*\}\})|\n(\{\{.*\}\})\n"  # 4 cases
-    ANNOTATION_CONTENT_REGEXP = r"([\w-]+)(:[\w\d]*)?"  # ignore commas and blanks and any non-word garbage symbols
+    ANNOTATION_CONTENT_REGEXP = r"([\w-]+)((?::[\w\d]+)*)"  # ignore commas and blanks and any non-word garbage symbols
     BARE_CODENAME_REGEXP = r"-?([\w-]+)(:[\w\d]*)?"
     EMPTY_ANNOTATION_REGEXP = r"\{\{\s*\}\}"
     LINE_AND_ANNOTATION_PAIR_REGEXP = r"(.*)\n(\{\{.*\}\})"
@@ -172,8 +206,8 @@ class Annotations:
     def is_empty_annotation(self, annotation: str) -> bool:
         return re.match(self.EMPTY_ANNOTATION_REGEXP, annotation) is not None
 
-    def split_into_codings(self, annotation: str) -> tg.Sequence[tg.Tuple[str, OStr]]:
-        """E.g. "{{a,b:i1}} --> [("a", None), ("b", ":i1")]"""
+    def split_into_codings(self, annotation: str) -> tg.Sequence[tg.Tuple[str, str]]:
+        """E.g. "{{a,b:i1}} --> [("a", ""), ("b", ":i1")]"""
         annotation = annotation[2:-2]  # strip off the braces front and back
         allcodes = re.findall(self.ANNOTATION_CONTENT_REGEXP, annotation)
         return allcodes
@@ -191,28 +225,8 @@ class Annotations:
         return (int(mm.group(1)) if mm.group(1) else 0,
                 int(mm.group(2)) if mm.group(2) else 0,)
 
-    def wrong_coding_msg(self, code: str, csuffix: tg.Optional[str]) -> tg.Optional[str]:
-        """Check a single consisting coding of code and perhaps iu_suffix. Return error msg or None."""
-        # ----- prepare suffix and base code:
-        suffix = csuffix[1:] if csuffix else None  # strip off initial ':'
-        if not suffix and code[-1] == '?':
-            code = code[:-1]  # strip off trailing question mark
-        # ----- report non-existing codes:
-        if not suffix:
-            if not self.codebook.exists_bare(code) and not self.codebook.exists_with_suffix(code):
-                return f"unknown code: '{code}'"
-            else:
-                return None  # known code without suffix: done
-        # ----- handle case with suffix:
-        if self.codebook.exists_with_iu_suffix(code):
-            mm = re.fullmatch(self.ALLOWED_IU_SUFFIX_REGEXP, suffix)
-            if not mm:
-                return f"IU suffix does not match one of the patterns :i1, :u2, :i3u4 : '{code}:{suffix}'"
-        elif self.codebook.exists_with_u_suffix(code):
-            mm = re.fullmatch(self.ALLOWED_U_SUFFIX_REGEXP, suffix)
-            if not mm:
-                return f"IU suffix does not match the only allowed pattern :u1 : '{code}:{suffix}'"
-        else:
-            return (f"%s: '{code}:{suffix}'" % ("should not have an IU suffix" if self.codebook.exists_bare(code)
-                                                else "unknown code"))
-        return None  # no problem found
+    def check_coding(self, code: str, cfullsuffix: tg.Optional[str]):
+        """Check a single coding of code and perhaps cfullsuffix. Perhaps raise CodingError."""
+        if not self.codebook.exists(code):
+            raise self.codebook.CodingError(f"unknown code: '{code}'")
+        self.codebook.check_suffix(code, cfullsuffix)
