@@ -51,6 +51,10 @@ class Codebook:
     def is_extra_code(code: str) -> bool:
         return code.startswith('-')
 
+    @classmethod
+    def is_subjective_code(cls, code: str) -> bool:
+        return code.startswith('-') and code != cls.IGNORECODE
+
     @staticmethod
     def is_heading_code(code: str) -> bool:
         return code.startswith('h-')
@@ -156,10 +160,12 @@ class Annotations:
         # counts are never optional, so all values are pairs now
         return result
 
-    def codings_of(self, annotation: str, strip_suffixes=False) -> tg.Set[str]:
+    def codings_of(self, annotation: str, strip_suffixes=False, strip_subjective=False) -> tg.Set[str]:
         """Return set of codings from annotation."""
         result = set()
         for code, csuffix in re.findall(self.ANNOTATION_CONTENT_REGEXP, annotation):
+            if strip_subjective and self.codebook.is_subjective_code(code):
+                continue  # do not include the subjective code
             result.add(code + ("" if strip_suffixes else csuffix))
         return result
 
