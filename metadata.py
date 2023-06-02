@@ -1,5 +1,6 @@
 """Reading and a little writing the various metadata files."""
 import glob
+import os.path
 import re
 import typing as tg
 
@@ -153,7 +154,7 @@ class WhoWhat:
         """
         results = glob.glob(f"{self.workdir}/*A")
         assert len(results) == 1, f"surprising glob result: {results}"
-        mm = re.search(r"/(.*)A$", results[0])  # find prefix in last part of path
+        mm = re.search(r"(.*)A$", os.path.basename(results[0]))  # find prefix in last part of path
         return mm.group(1)
 
     def _build_neighboring_pairs(self, citekey_: str, columns: tg.Sequence[str]) -> tg.Generator[Filepair, None, None]:
