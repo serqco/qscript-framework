@@ -64,27 +64,27 @@ class CodingsComparator:
         return min(msgcount, 255)  # avoid overflow
         
     def compare_files(self, ctx: ComparatorContext, 
-                      maxcountdiff: int, annots: annot.Annotations) -> int:
+                      maxcountdiff: int, annots: annot.Annotations):
         with open(ctx.file1, 'r', encoding='utf8') as f1:
             content1 = f1.read()
         with open(ctx.file2, 'r', encoding='utf8') as f2:
             content2 = f2.read()
-        sa_pairs1 = annots.find_all_sentence_and_annotation_pairs(content1)  # list of pairs (previous sentence, annotation)
-        sa_pairs2 = annots.find_all_sentence_and_annotation_pairs(content2)  # list of pairs (previous sentence, annotation)
-        return self.compare_codings2(ctx, sa_pairs1, sa_pairs2, maxcountdiff, annots)
-    
+        sa_pairs1 = annots.find_all_sentence_and_annotation_pairs(content1)  # list of (previous sentence, annotation)
+        sa_pairs2 = annots.find_all_sentence_and_annotation_pairs(content2)  # list of (previous sentence, annotation)
+        self.compare_codings2(ctx, sa_pairs1, sa_pairs2, maxcountdiff, annots)
     
     def compare_codings2(self, ctx: ComparatorContext, 
                          annotated_sentences1: tg.Sequence[annot.AnnotatedSentence],
                          annotated_sentences2: tg.Sequence[annot.AnnotatedSentence],
-                         maxcountdiff: int, annots: annot.Annotations) -> int:
+                         maxcountdiff: int, annots: annot.Annotations):
         self.lastmsg = ""  # message type in last header
         self.extra_line_done = True  # whether one more sentence after previous problem has been shown already
     
         for as1, as2 in zip(annotated_sentences1, annotated_sentences2):
             # ----- check for non-parallel codings:
             if as1.sentence != as2.sentence:
-                self._printmsg(ctx, "Annotations should be at parallel points in the files, but are at different points here:",
+                should_msg = "Annotations should be at parallel points in the files"
+                self._printmsg(ctx, f"{should_msg}, but are at different points here:",
                                self._of_1(ctx, f"\"{as1.sentence}\""), self._of_2(ctx, f"\"{as2.sentence}\""))
                 break
             # ----- check for incomplete annotation:
@@ -113,30 +113,30 @@ class CodingsComparator:
                                self._of_1(ctx, as1.annotation), self._of_2(ctx, as2.annotation))
                 continue
             # ----- check for count discrepancies:
-            countdiffs_count = 0
-            for code, counts in annots.codes_with_suffixes(as1.annotation, as2.annotation).items():
-                icount1, ucount1, icount2, ucount2 = counts
-                idiff = abs(icount1 - icount2) > maxcountdiff
-                udiff = abs(ucount1 - ucount2) > maxcountdiff
-                if idiff and udiff:
-                    self._printmsg(ctx, f"{code}: Very different numbers of i&u gaps, please reconsider:",
-                                   self._numbered_sentence(as1), 
-                                   self._of_1(ctx, as1.annotation), self._of_2(ctx, as2.annotation))
-                    countdiffs_count += 1
-                elif idiff:
-                    self._printmsg(ctx, f"{code}: Very different numbers of informativeness gaps, please reconsider:",
-                                   self._numbered_sentence(as1), 
-                                   self._of_1(ctx, as1.annotation), self._of_2(ctx, as2.annotation))
-                    countdiffs_count += 1
-                elif udiff:
-                    self._printmsg(ctx, f"{code}: Very different numbers of understandability gaps, please reconsider:",
-                                   self._numbered_sentence(as1), 
-                                   self._of_1(ctx, as1.annotation), self._of_2(ctx, as2.annotation))
-                    countdiffs_count += 1
-            if countdiffs_count > 0:
+            old_msgcount = self.msgcount
+            self.check_suffixes(annots, as1, as2, ctx, maxcountdiff)
+            if self.msgcount - old_msgcount > 0:
                 continue
             self._printextra(self._numbered_sentence(as1), 
                              self._of_1_ok(ctx, as1.annotation), self._of_2_ok(ctx, as2.annotation))
+
+    def check_suffixes(self, annots, as1, as2, ctx, maxcountdiff):
+        for code, counts in annots.codes_with_iucounts(as1.annotation, as2.annotation).items():
+            icount1, ucount1, icount2, ucount2 = counts
+            idiff = abs(icount1 - icount2) > maxcountdiff
+            udiff = abs(ucount1 - ucount2) > maxcountdiff
+            if idiff and udiff:
+                self._printmsg(ctx, f"{code}: Very different numbers of i&u gaps, please reconsider:",
+                               self._numbered_sentence(as1),
+                               self._of_1(ctx, as1.annotation), self._of_2(ctx, as2.annotation))
+            elif idiff:
+                self._printmsg(ctx, f"{code}: Very different numbers of informativeness gaps, please reconsider:",
+                               self._numbered_sentence(as1),
+                               self._of_1(ctx, as1.annotation), self._of_2(ctx, as2.annotation))
+            elif udiff:
+                self._printmsg(ctx, f"{code}: Very different numbers of understandability gaps, please reconsider:",
+                               self._numbered_sentence(as1),
+                               self._of_1(ctx, as1.annotation), self._of_2(ctx, as2.annotation))
 
     def _printmsg(self, ctx: ComparatorContext, msg: str, *items: tg.Sequence[str]):
         """Show sentence with a problem. Suppress header if same as previous."""
@@ -171,4 +171,3 @@ class CodingsComparator:
 
     def _of_2_ok(self, ctx: ComparatorContext, msg: str) -> str:
         return f"{color.GREEN}{msg}{color.RESET}  -OK- ({ctx.name2})"
-

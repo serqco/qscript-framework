@@ -12,7 +12,6 @@ Terminology for annotations:
 """
 import dataclasses
 import re
-import sys
 import typing as tg
 
 import qscript.icc as icc
@@ -37,6 +36,7 @@ class Codebook:
     IGNORECODE = '-ignorediff'  # code that indicates not to report coding differences
     GARBAGE_CODES = ['cruft']
     NONETOPIC = 'none'  # pseudo-topic for codes that have no topic
+    IU_SUFFIX_REGEXP = r":[iu](\\d)+"
     codedefs: tg.Mapping[str, CodeDef]  # maps code to CodeDef
 
     def __init__(self):
@@ -63,16 +63,9 @@ class Codebook:
                 raise self.CodingError(msg)
             # else all is fine and nothing happens
 
-    def exists_with_iu_suffix(self, coding: str) -> bool:
-        """Whether this coding with no IU suffix could have had one."""
-        return f"{coding}:iu" in self.codes
-
-    def exists_with_u_suffix(self, coding: str) -> bool:
-        """Whether this coding with no U suffix could have had one."""
-        return f"{coding}:u" in self.codes
-
-    def exists_with_suffix(self, coding: str) -> bool:
-        return self.exists_with_iu_suffix(coding) or self.exists_with_u_suffix(coding)
+    def can_have_iu_suffix(self, code: str) -> bool:
+        """Whether this code may be used with an iu suffix."""
+        return re.search(self.IU_SUFFIX_REGEXP, self.codedefs[code].suffixdef) is not None
 
     @staticmethod
     def is_extra_code(code: str) -> bool:
@@ -127,15 +120,14 @@ class AnnotatedSentence:
 
 
 class Annotations:
-    ALLOWED_IU_SUFFIX_REGEXP = r"i\d+|u\d+|i\d+u\d+"
-    ALLOWED_U_SUFFIX_REGEXP = r"u\d+"
     ANNOTATIONISH_REGEXP = r"\n(\{\{[^}]*\})\n|\n(\{[^{]*\}\})\n|\n(.+\{\{.*\}\})|\n(\{\{.*\}\})\n"  # 4 cases
     ANNOTATION_CONTENT_REGEXP = r"([\w-]+)((?::[\w\d]+)*)"  # ignore commas and blanks and any non-word garbage symbols
     BARE_CODENAME_REGEXP = r"-?([\w-]+)(:[\w\d]*)?"
     EMPTY_ANNOTATION_REGEXP = r"\{\{\s*\}\}"
     LINE_AND_ANNOTATION_PAIR_REGEXP = r"(.*)\n(\{\{.*\}\})"
     SENTENCE_AND_ANNOTATION_PAIR_REGEXP = r"(?<=.\n\n|\}\}\n)(.*?)\n(\{\{.*?\}\})"
-    SPLIT_SUFFIX_REGEXP = r":?(?:i(\d+))?(?:u(\d+))?"  # works for suffix or csuffix
+    ICOUNT_REGEXP = r":i(\d+)"
+    UCOUNT_REGEXP = r":u(\d+)"
 
     def __init__(self):
         self.codebook = icc.init(Codebook)
@@ -156,7 +148,7 @@ class Annotations:
         return result
 
     def bare_codename(self, coding: str) -> str:
-        """Strips off leading dashes and trailing IU suffixes where present"""
+        """Strips off leading dashes and trailing suffixes where present"""
         mm = re.match(self.BARE_CODENAME_REGEXP, coding)
         return mm.group(1)
 
@@ -172,25 +164,21 @@ class Annotations:
             return "{{}}" f" annotation must be alone on a line: '{other}'\n", None
         return None, valid
 
-    def codes_with_suffixes(self, annotation1: str, annotation2: str) -> tg.Mapping[str, IUIUcount]:
+    def codes_with_iucounts(self, annotation1: str, annotation2: str) -> tg.Mapping[str, IUIUcount]:
         """
         Map codes to tuples of (icount1, ucount1, icount2, ucount2) for 
-        those codes in the annotations that can have IU suffixes or U suffixes.
+        those codes in the annotations that can have IU suffixes.
         Counts are forced to 0 for codes that happen not to have a suffix.
         """
         result = dict()
-        annotation_regexp = r"([\w-]+):(\d+)"
-        for code, csuffix in re.findall(self.ANNOTATION_CONTENT_REGEXP, annotation1):
-            if self.codebook.exists_with_suffix(code):
-                result[code] = self.split_suffix(csuffix)
-        for code, csuffix in re.findall(self.ANNOTATION_CONTENT_REGEXP, annotation2):
-            if self.codebook.exists_with_suffix(code):
+        for code, cfullsuffix in re.findall(self.ANNOTATION_CONTENT_REGEXP, annotation1):
+            if self.codebook.can_have_iu_suffix(code):
+                result[code] = self.get_iu_counts(cfullsuffix)
+        for code, cfullsuffix in re.findall(self.ANNOTATION_CONTENT_REGEXP, annotation2):
+            if self.codebook.can_have_iu_suffix(code):
                 icount1, ucount1 = result[code]
-                icount2, ucount2 = self.split_suffix(csuffix)
+                icount2, ucount2 = self.get_iu_counts(cfullsuffix)
                 result[code] = (icount1, ucount1, icount2, ucount2)
-        for code, count in re.findall(annotation_regexp, annotation2):
-            assert False
-            result[code] = (result[code], count)  # turn single count into a pair of counts
         # counts are never optional, so all values are pairs now
         return result
 
@@ -212,18 +200,17 @@ class Annotations:
         allcodes = re.findall(self.ANNOTATION_CONTENT_REGEXP, annotation)
         return allcodes
 
-    def split_suffix(self, suffix: str) -> tg.Tuple[int, int]:
+    def get_iu_counts(self, cfullsuffix: str) -> tg.Tuple[int, int]:
         """
-        Return a pair (icount, ucount) from 
-        an IU suffix (or csuffix) in i form, u form, iu form or even a missing one.
+        Return a pair (icount, ucount) from the given cfullsuffix.
         """
-        if not suffix:
+        if not cfullsuffix:
             return 0, 0
-        mm = re.fullmatch(self.SPLIT_SUFFIX_REGEXP, suffix)
-        # if not mm:  # force malformed suffixes to (0, 0)
-        #     return (0, 0)
-        return (int(mm.group(1)) if mm.group(1) else 0,
-                int(mm.group(2)) if mm.group(2) else 0,)
+        mm = re.search(self.ICOUNT_REGEXP, cfullsuffix)
+        icount = 0 if not mm else int(mm.group(1))
+        mm = re.search(self.UCOUNT_REGEXP, cfullsuffix)
+        ucount = 0 if not mm else int(mm.group(1))
+        return icount, ucount
 
     def check_coding(self, code: str, cfullsuffix: tg.Optional[str]):
         """Check a single coding of code and perhaps cfullsuffix. Perhaps raise CodingError."""
