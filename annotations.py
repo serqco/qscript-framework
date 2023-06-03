@@ -36,7 +36,6 @@ class Codebook:
     IGNORECODE = '-ignorediff'  # code that indicates not to report coding differences
     GARBAGE_CODES = ['cruft']
     NONETOPIC = 'none'  # pseudo-topic for codes that have no topic
-    IU_SUFFIX_REGEXP = r":[iu](\\d)+"
     codedefs: tg.Mapping[str, CodeDef]  # maps code to CodeDef
 
     def __init__(self):
@@ -63,10 +62,6 @@ class Codebook:
                 raise self.CodingError(msg)
             # else all is fine and nothing happens
 
-    def can_have_iu_suffix(self, code: str) -> bool:
-        """Whether this code may be used with an iu suffix."""
-        return re.search(self.IU_SUFFIX_REGEXP, self.codedefs[code].suffixdef) is not None
-
     @staticmethod
     def is_extra_code(code: str) -> bool:
         return code.startswith('-')
@@ -82,21 +77,13 @@ class Codebook:
     @classmethod
     def topic(cls, code: str) -> str:
         """Code group, for a coarser analysis. Result words should have a unique first letter."""
-        the_topic = dict(
-                background='background', gap='gap', need='gap',
-                objective='objective',
-                design='design', method='method', result='result', claim='result', summary='summary',
-                conclusion='conclusion',
-                fposs='future', fneed='future', fgap='future', fwork='future',
-                limitation='other', resourcepointer='other', X='other',
-                )
         if code.startswith('-'):
             return cls.NONETOPIC  # auxiliary codes have no topic
         if code.startswith('a-'):
             return cls.topic(code[2:])
         if code.startswith('h-'):
             return cls.topic(code[2:])
-        return the_topic[code]
+        return cls._rawtopicdict()[code]
 
     def codebook_contents(self, codebookfile: str) -> tg.Mapping[str, CodeDef]:
         with open(codebookfile, 'rt', encoding='utf8') as cb:
@@ -126,8 +113,6 @@ class Annotations:
     EMPTY_ANNOTATION_REGEXP = r"\{\{\s*\}\}"
     LINE_AND_ANNOTATION_PAIR_REGEXP = r"(.*)\n(\{\{.*\}\})"
     SENTENCE_AND_ANNOTATION_PAIR_REGEXP = r"(?<=.\n\n|\}\}\n)(.*?)\n(\{\{.*?\}\})"
-    ICOUNT_REGEXP = r":i(\d+)"
-    UCOUNT_REGEXP = r":u(\d+)"
 
     def __init__(self):
         self.codebook = icc.init(Codebook)
@@ -164,24 +149,6 @@ class Annotations:
             return "{{}}" f" annotation must be alone on a line: '{other}'\n", None
         return None, valid
 
-    def codes_with_iucounts(self, annotation1: str, annotation2: str) -> tg.Mapping[str, IUIUcount]:
-        """
-        Map codes to tuples of (icount1, ucount1, icount2, ucount2) for 
-        those codes in the annotations that can have IU suffixes.
-        Counts are forced to 0 for codes that happen not to have a suffix.
-        """
-        result = dict()
-        for code, cfullsuffix in re.findall(self.ANNOTATION_CONTENT_REGEXP, annotation1):
-            if self.codebook.can_have_iu_suffix(code):
-                result[code] = self.get_iu_counts(cfullsuffix)
-        for code, cfullsuffix in re.findall(self.ANNOTATION_CONTENT_REGEXP, annotation2):
-            if self.codebook.can_have_iu_suffix(code):
-                icount1, ucount1 = result[code]
-                icount2, ucount2 = self.get_iu_counts(cfullsuffix)
-                result[code] = (icount1, ucount1, icount2, ucount2)
-        # counts are never optional, so all values are pairs now
-        return result
-
     def codings_of(self, annotation: str, strip_suffixes=False, strip_subjective=False) -> tg.Set[str]:
         """Return set of codings from annotation."""
         result = set()
@@ -199,18 +166,6 @@ class Annotations:
         annotation = annotation[2:-2]  # strip off the braces front and back
         allcodes = re.findall(self.ANNOTATION_CONTENT_REGEXP, annotation)
         return allcodes
-
-    def get_iu_counts(self, cfullsuffix: str) -> tg.Tuple[int, int]:
-        """
-        Return a pair (icount, ucount) from the given cfullsuffix.
-        """
-        if not cfullsuffix:
-            return 0, 0
-        mm = re.search(self.ICOUNT_REGEXP, cfullsuffix)
-        icount = 0 if not mm else int(mm.group(1))
-        mm = re.search(self.UCOUNT_REGEXP, cfullsuffix)
-        ucount = 0 if not mm else int(mm.group(1))
-        return icount, ucount
 
     def check_coding(self, code: str, cfullsuffix: tg.Optional[str]):
         """Check a single coding of code and perhaps cfullsuffix. Perhaps raise CodingError."""
