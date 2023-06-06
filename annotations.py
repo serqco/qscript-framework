@@ -20,7 +20,6 @@ import qscript.icc as icc
 OStr = tg.Optional[str]
 Coding = tg.Tuple[str, str]  # code, suffixes
 AnnotationishMatches = tg.Tuple[OStr, OStr, OStr, OStr]
-IUIUcount = tg.Tuple[int, int, int, int]
 
 
 @dataclasses.dataclass
