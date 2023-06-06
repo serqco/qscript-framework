@@ -18,6 +18,7 @@ import qscript.icc as icc
 
 
 OStr = tg.Optional[str]
+Coding = tg.Tuple[str, str]  # code, suffixes
 AnnotationishMatches = tg.Tuple[OStr, OStr, OStr, OStr]
 IUIUcount = tg.Tuple[int, int, int, int]
 
@@ -161,7 +162,7 @@ class Annotations:
     def is_empty_annotation(self, annotation: str) -> bool:
         return re.match(self.EMPTY_ANNOTATION_REGEXP, annotation) is not None
 
-    def split_into_codings(self, annotation: str) -> tg.Sequence[tg.Tuple[str, str]]:
+    def split_into_codings(self, annotation: str) -> tg.Sequence[Coding]:
         """E.g. "{{a,b:i1}} --> [("a", ""), ("b", ":i1")]"""
         annotation = annotation[2:-2]  # strip off the braces front and back
         allcodes = re.findall(self.ANNOTATION_CONTENT_REGEXP, annotation)
@@ -172,3 +173,7 @@ class Annotations:
         if not self.codebook.exists(code):
             raise self.codebook.CodingError(f"unknown code: '{code}'")
         self.codebook.check_suffix(code, cfullsuffix)
+
+    def check_codings(self, codings: tg.Sequence[Coding]):
+        """Check a sequence of codings for their global properties. Perhaps raise CodingError."""
+        pass  # per default, there are no inter-coding requirements

@@ -62,9 +62,15 @@ def report_errors(file: str, coder: str, block: str, annots: annot.Annotations) 
 
 def report_errors_within_braces(annotation: str, annots: annot.Annotations) -> tg.Sequence[str]:
     errors = []
-    for code, fullsuffix in annots.split_into_codings(annotation):
+    codings = annots.split_into_codings(annotation)
+    for code, fullsuffix in codings:
         try:
             annots.check_coding(code, fullsuffix)
+        except annots.codebook.CodingError as exc:
+            errors.append(f"{annotation}\n{color.RED}{exc.args[0]}{color.RESET}")
+    if not errors:
+        try:
+            annots.check_codings(codings)
         except annots.codebook.CodingError as exc:
             errors.append(f"{annotation}\n{color.RED}{exc.args[0]}{color.RESET}")
     return errors
