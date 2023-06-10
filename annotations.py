@@ -83,6 +83,8 @@ class Codebook:
             return cls.topic(code[2:])
         if code.startswith('h-'):
             return cls.topic(code[2:])
+        if code not in cls._rawtopicdict():
+            return "none"
         return cls._rawtopicdict()[code]
 
     def codebook_contents(self, codebookfile: str) -> tg.Mapping[str, CodeDef]:
