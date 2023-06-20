@@ -66,6 +66,7 @@ class Subsets(list):
 
 
 class PlotContext:
+    """Configuration object to supply to generic plotting operations."""
     outputdir: str
     basename: str
     df: pd.DataFrame
@@ -142,6 +143,15 @@ def add_boxplotlet(ctx: PlotContext, x: float,
         medianprops=dict(color='grey'),
         meanprops=dict(marker="o", markersize=3,
                        markerfacecolor="orange", markeredgecolor="orange"))
+
+
+def add_nonzerofractionbarplotlet(ctx: PlotContext, x: float,
+                   xlet_data: tg.Any, inner_subset: Subset):
+    """One bar that shows what fraction (in percent) of the data is nonzero"""
+    color = inner_subset.get('color', "mediumblue")
+    xlet_x = x + inner_subset['x']
+    y = 100 * ((xlet_data != 0).sum() / len(xlet_data))
+    ctx.ax.bar(x=xlet_x, height=y, width=0.8, label="", color=color)
 
 
 def add_zerofractionbarplotlet(ctx: PlotContext, x: float,
