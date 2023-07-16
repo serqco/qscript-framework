@@ -14,8 +14,6 @@ import dataclasses
 import re
 import typing as tg
 
-import fkscore
-
 import qscript.icc as icc
 
 
@@ -103,12 +101,50 @@ class Codebook:
         return result
 
 
-@dataclasses.dataclass
 class AnnotatedSentence:
     sentence_idx: int
     sentence: str
+    words: int
+    chars: int
     fk_readability: float
     annotation: str
+
+    def __init__(self, idx: int, sentence: str, annotation: str):
+        self.sentence_idx = idx
+        self.sentence = sentence
+        self.chars = len(sentence)
+        self.annotation = annotation
+        wordlist = re.split(r"\s+", sentence)  # split at single or multiple whitespace
+        self.words = len(wordlist)
+        self.fk_readability = self.fk_score(wordlist)
+        
+    def fk_score(self, wordlist: tg.Sequence[str]) -> float:
+        """
+        Flesch-Kincaid reading ease 1-sentence readability score, see 
+        https://en.wikipedia.org/wiki/Flesch%E2%80%93Kincaid_readability_tests
+        Under 50: difficult to read, college level.
+        Under 30: very difficult to read, graduate level.
+        Under 10: extremely difficult to read, professional specialists.
+        """
+        syllables = sum([self.syllablecount(word) for word in wordlist])
+        score = 206.835 - 1.015*self.words - 84.6*syllables/self.words
+        return round(score, 1)
+
+
+    def syllablecount(self, word: str) -> int:
+        """near-correct (for English) heuristic count of syllables"""
+        # word includes punctuation, which does not matter for our logic:
+        if not word:
+            return 0  # kludge: our word splitting produces empty first words
+        word = word.lower()
+        vowels = "aeiouy"
+        result = 1 if word[0] in vowels else 0
+        for i in range(1, len(word)):
+            if word[i-1] not in vowels and word[i] in vowels:
+                result += 1
+        if word.endswith("e"):
+            result -= 1
+        return result if result else 1
 
 
 class Annotations:
@@ -133,8 +169,7 @@ class Annotations:
         i = 1
         for sentence, annotation in re.findall(self.SENTENCE_AND_ANNOTATION_PAIR_REGEXP, 
                                                content, flags=re.DOTALL):
-            readability = round(fkscore.fkscore(sentence).score['readability'], 1)
-            result.append(AnnotatedSentence(i, sentence, readability, annotation))
+            result.append(AnnotatedSentence(i, sentence, annotation))
             i += 1
         return result
 
