@@ -14,6 +14,8 @@ import dataclasses
 import re
 import typing as tg
 
+import fkscore
+
 import qscript.icc as icc
 
 
@@ -105,6 +107,7 @@ class Codebook:
 class AnnotatedSentence:
     sentence_idx: int
     sentence: str
+    fk_readability: float
     annotation: str
 
 
@@ -130,7 +133,8 @@ class Annotations:
         i = 1
         for sentence, annotation in re.findall(self.SENTENCE_AND_ANNOTATION_PAIR_REGEXP, 
                                                content, flags=re.DOTALL):
-            result.append(AnnotatedSentence(i, sentence, annotation))
+            readability = round(fkscore.fkscore(sentence).score['readability'], 1)
+            result.append(AnnotatedSentence(i, sentence, readability, annotation))
             i += 1
         return result
 
