@@ -1,10 +1,3 @@
-import sys
-import typing as tg
-from typing import Any
-
-import qscript.annotations as annot
-import qscript.color as color
-import qscript.icc as icc
 import qscript.metadata
 import qscript
 
@@ -14,7 +7,6 @@ meaning = """Counts (reports on) coding progress.
   Reads sample-who-what.txt and creates a report of the progress.
   Reports problems on stdout.
 """
-
 aliases = ["report"]
 
 
