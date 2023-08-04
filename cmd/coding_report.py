@@ -22,41 +22,41 @@ def execute(args: qscript.Namespace):
     # ----- gather report data:
     what = qscript.metadata.WhoWhat(args.workdir)
     report_data = {
-        'total_abs': 0,
+        'total_pairs': 0,
         'blocks': set(),
-        'pairs': defaultdict(lambda: {'abs_count': 0, 'blocks': set()}),
+        'pairs': defaultdict(lambda: {'pair_count': 0, 'blocks': set()}),
     }
     for pair in what.pairs:
         coder_tuple = tuple(sorted([pair[1], pair[3]]))
         block_name = what.blockname(pair[0])
         # Count total abstracts
-        report_data['total_abs'] += 1
+        report_data['total_pairs'] += 1
         # Track unique blocks
         report_data['blocks'].add(block_name)
         # Count pairs
-        report_data['pairs'][coder_tuple]['abs_count'] += 1
+        report_data['pairs'][coder_tuple]['pair_count'] += 1
         report_data['pairs'][coder_tuple]['blocks'].add(block_name)
 
     # ----- display report data:
-    print(f"\nCoded Abstracts: {report_data['total_abs']} ({len(report_data['blocks'])} blocks)")
+    print(f"\nCoded Units: {report_data['total_pairs']} ({len(report_data['blocks'])} blocks)")
     print('\nCoding Pairs:')
     name_pad = max([len(name) for name in what.coders])
     sorted_pairs = dict(sorted(report_data['pairs'].items(),
-                               key=lambda item: item[1]['abs_count'],
+                               key=lambda item: item[1]['pair_count'],
                                reverse=True))
     for pair, data in sorted_pairs.items():
-        print(f"{pair[0]: <{name_pad}} & {pair[1]: <{name_pad}} {data['abs_count']} ({len(data['blocks'])} blocks)")
+        print(f"{pair[0]: <{name_pad}} & {pair[1]: <{name_pad}} {data['pair_count']} ({len(data['blocks'])} blocks)")
     print('\nCoding Individuals:')
-    coder_reports = defaultdict(lambda: {'abs_count': 0, 'blocks': set()})
+    coder_reports = defaultdict(lambda: {'pair_count': 0, 'blocks': set()})
     for coder in sorted(what.coders):
         for pair, data in sorted_pairs.items():
             if coder not in pair:
                 continue
-            coder_reports[coder]['abs_count'] += data['abs_count']
+            coder_reports[coder]['pair_count'] += data['pair_count']
             coder_reports[coder]['blocks'].update(data['blocks'])
     sorted_coder_reports = dict(sorted(coder_reports.items(),
-                                       key=lambda item: item[1]['abs_count'],
+                                       key=lambda item: item[1]['pair_count'],
                                        reverse=True)).items()
     for coder, coder_report in sorted_coder_reports:
-        print(f"{coder: <{name_pad}} {coder_report['abs_count']} ({len(coder_report['blocks'])} blocks)")
+        print(f"{coder: <{name_pad}} {coder_report['pair_count']} ({len(coder_report['blocks'])} blocks)")
     print('')
