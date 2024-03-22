@@ -134,7 +134,7 @@ def add_boxplotlet(ctx: PlotContext, x: float,
     color = inner_subset.get('color', "mediumblue")
     xlet_x = x + inner_subset['x']
     ctx.ax.boxplot(
-        [xlet_data],
+        [xlet_data[xlet_data.notna()]],
         notch=False, whis=(10, 90),
         positions=[xlet_x], labels=[""],  # labels are per-group only
         widths=0.8, capwidths=0.2,
