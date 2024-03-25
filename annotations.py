@@ -83,9 +83,9 @@ class Codebook:
             return cls.topic(code[2:])
         if code.startswith('h-'):
             return cls.topic(code[2:])
-        if code not in cls._rawtopicdict():
+        if code not in cls._rawtopicdict():  # noqa
             return "none"
-        return cls._rawtopicdict()[code]
+        return cls._rawtopicdict()[code]  # noqa
 
     def codebook_contents(self, codebookfile: str) -> tg.Mapping[str, CodeDef]:
         with open(codebookfile, 'rt', encoding='utf8') as cb:
@@ -130,8 +130,8 @@ class AnnotatedSentence:
         score = 206.835 - 1.015*self.words - 84.6*syllables/self.words
         return round(score, 1)
 
-
-    def syllablecount(self, word: str) -> int:
+    @staticmethod
+    def syllablecount(word: str) -> int:
         """near-correct (for English) heuristic count of syllables"""
         # word includes punctuation, which does not matter for our logic:
         if not word:

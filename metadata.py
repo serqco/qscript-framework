@@ -145,7 +145,6 @@ class WhoWhat:
         mm = re.search(self.FILENAMEPATTERN, filename)
         return mm.group(which)
 
-
     def _subdir_prefix(self) -> str:
         """
         Determine which, if any, prefix is used for the names of the extracts-holding subdirectories.

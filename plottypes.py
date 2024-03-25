@@ -145,8 +145,7 @@ def add_boxplotlet(ctx: PlotContext, x: float,
                        markerfacecolor="orange", markeredgecolor="orange"))
 
 
-def add_nonzerofractionbarplotlet(ctx: PlotContext, x: float,
-                   xlet_data: tg.Any, inner_subset: Subset):
+def add_nonzerofractionbarplotlet(ctx: PlotContext, x: float, xlet_data: tg.Any, inner_subset: Subset):
     """One bar that shows what fraction (in percent) of the data is nonzero"""
     color = inner_subset.get('color', "mediumblue")
     xlet_x = x + inner_subset['x']
@@ -154,8 +153,7 @@ def add_nonzerofractionbarplotlet(ctx: PlotContext, x: float,
     ctx.ax.bar(x=xlet_x, height=y, width=0.8, label="", color=color)
 
 
-def add_zerofractionbarplotlet(ctx: PlotContext, x: float,
-                   xlet_data: tg.Any, inner_subset: Subset):
+def add_zerofractionbarplotlet(ctx: PlotContext, x: float, xlet_data: tg.Any, inner_subset: Subset):
     """One bar that shows what fraction (in percent) of the data is zero"""
     color = inner_subset.get('color', "mediumblue")
     xlet_x = x + inner_subset['x']
