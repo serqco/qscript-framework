@@ -106,6 +106,7 @@ class AnnotatedSentence:
     sentence: str
     words: int
     chars: int
+    syllables: int
     fk_readability: float
     annotation: str
 
@@ -116,9 +117,10 @@ class AnnotatedSentence:
         self.annotation = annotation
         wordlist = re.split(r"\s+", sentence)  # split at single or multiple whitespace
         self.words = len(wordlist)
-        self.fk_readability = self.fk_score(wordlist)
+        self.syllables = sum([self.syllablecount(word) for word in wordlist])
+        self.fk_readability = self.fk_score()
         
-    def fk_score(self, wordlist: tg.Sequence[str]) -> float:
+    def fk_score(self) -> float:
         """
         Flesch-Kincaid reading ease 1-sentence readability score, see 
         https://en.wikipedia.org/wiki/Flesch%E2%80%93Kincaid_readability_tests
@@ -126,8 +128,7 @@ class AnnotatedSentence:
         Under 30: very difficult to read, graduate level.
         Under 10: extremely difficult to read, professional specialists.
         """
-        syllables = sum([self.syllablecount(word) for word in wordlist])
-        score = 206.835 - 1.015*self.words - 84.6*syllables/self.words
+        score = 206.835 - 1.015*self.words - 84.6*self.syllables/self.words
         return round(score, 1)
 
     @staticmethod
