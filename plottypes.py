@@ -152,6 +152,27 @@ def add_nonzerofractionbarplotlet(ctx: PlotContext, x: float, xlet_data: tg.Any,
     y = 100 * ((xlet_data != 0).sum() / len(xlet_data))
     ctx.ax.bar(x=xlet_x, height=y, width=0.8, label="", color=color)
 
+def add_nonzerofractionbarplotlet_with_errorbars(ctx: PlotContext, x: float, xlet_data: tg.Any, inner_subset: Subset):
+    """One bar that shows what fraction (in percent) of the data is nonzero, with error bars"""
+    color = inner_subset.get('color', "mediumblue")
+    xlet_x = x + inner_subset['x']
+    y = round(100 * ((xlet_data != 0).sum() / len(xlet_data)), 3)
+
+    # Error bar calculation
+    level1 = xlet_data.index.get_level_values(0)
+    level2 = xlet_data.index.get_level_values(1)
+
+    nonzero_counts_level1 = xlet_data.groupby(level1).apply(lambda group: (group != 0).sum())
+
+    all_nonzero = (nonzero_counts_level1 == level2.nunique()).sum()
+    any_nonzero = (nonzero_counts_level1 >= 1).sum()
+
+    upper_error = round(100 * any_nonzero / level1.nunique(), 3)
+    lower_error = round(100 * all_nonzero / level1.nunique(), 3)
+
+    yerr = [[y - lower_error], [upper_error - y]]
+
+    ctx.ax.bar(x=xlet_x, height=y, yerr=yerr, width=0.8, label="", color=color, error_kw = {"elinewidth": 0.7, "capsize": 1, "capthick": 0.5})
 
 def add_zerofractionbarplotlet(ctx: PlotContext, x: float, xlet_data: tg.Any, inner_subset: Subset):
     """One bar that shows what fraction (in percent) of the data is zero"""
@@ -160,6 +181,27 @@ def add_zerofractionbarplotlet(ctx: PlotContext, x: float, xlet_data: tg.Any, in
     y = 100 * ((xlet_data == 0).sum() / len(xlet_data))
     ctx.ax.bar(x=xlet_x, height=y, width=0.8, label="", color=color)
 
+def add_zerofractionbarplotlet_with_errorbars(ctx: PlotContext, x: float, xlet_data: tg.Any, inner_subset: Subset):
+    """One bar that shows what fraction (in percent) of the data is zero, with error bars"""
+    color = inner_subset.get('color', "mediumblue")
+    xlet_x = x + inner_subset['x']
+    y = round(100 * ((xlet_data == 0).sum() / len(xlet_data)), 3)
+
+    # Error bar calculation
+    level1 = xlet_data.index.get_level_values(0)
+    level2 = xlet_data.index.get_level_values(1)
+
+    zero_counts_level1 = xlet_data.groupby(level1).apply(lambda group: (group == 0).sum())
+
+    all_zero = (zero_counts_level1 == level2.nunique()).sum()
+    any_zero = (zero_counts_level1 >= 1).sum()
+
+    upper_error = round(100 * any_zero / level1.nunique(), 3)
+    lower_error = round(100 * all_zero / level1.nunique(), 3)
+
+    yerr = [[y - lower_error], [upper_error - y]]
+
+    ctx.ax.bar(x=xlet_x, yerr=yerr, height=y, width=0.8, label="", color=color, error_kw = {"elinewidth": 0.7, "capsize": 1, "capthick": 0.5})
 
 def plot_boxplots(ctx: PlotContext, which: str, *, ymax=None):
     """Make a plot with one boxplot for each subset."""
