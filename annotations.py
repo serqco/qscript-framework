@@ -82,7 +82,9 @@ class Codebook:
         if code.startswith('a-'):
             return cls.topic(code[2:])
         if code.startswith('h-'):
-            return cls.topic(code[2:])
+            # e.g. h-conclusion is _not_ a conclusion. Treating it like one would sometimes lead to 
+            # topicletter strings that look more convoluted than the abstract really is, e.g. ...csc.
+            return cls.NONETOPIC
         if code not in cls._rawtopicdict():  # noqa
             return "none"
         return cls._rawtopicdict()[code]  # noqa
